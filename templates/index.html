@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <!-- Centered microphone button container (no inner icon) -->
+  <div id="mic-button" class="mic-button"></div>
+  
+  <!-- Controls container for pause/resume and mute/unmute (icons only) -->
+  <div class="controls">
+    <button id="toggle-button" class="icon-button">
+      <i id="toggle-icon" class="fa fa-pause"></i>
+    </button>
+    <button id="mute-button" class="icon-button">
+      <i id="mute-icon" class="fa fa-volume-up"></i>
+    </button>
+  </div>
+  
+  <!-- Display area for conversation text -->
+  <div id="display-area" class="display-area">
+    <p id="user-text" class="display-text"></p>
+    <p id="assistant-text" class="display-text"></p>
+  </div>
+</div>
+
+<script>
+  let paused = false;
+  let muted = false;
+  let recognition;
+
+  // Initialize Speech Recognition (with fallback for webkit)
+  window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = false;
+  recognition.lang = 'en-US';
+
+  recognition.onend = function() {
+    if (!paused) {
+      recognition.start();
+    }
+  };
+
+  recognition.onresult = function(event) {
+    let transcript = event.results[event.results.length - 1][0].transcript;
+    document.getElementById("user-text").textContent = transcript;
+    fetch('/process_voice', {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ command: transcript })
+    })
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById("assistant-text").textContent = data.response;
+      if (!muted) {
+        let utterance = new SpeechSynthesisUtterance(data.response);
+        let voices = window.speechSynthesis.getVoices();
+        let selectedVoice = voices.find(v => v.name === "Google US English") || voices[0];
+        utterance.voice = selectedVoice;
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        speechSynthesis.speak(utterance);
+      }
+    });
+  };
+
+  // Toggle pause/resume functionality with icon change
+  document.getElementById("toggle-button").addEventListener("click", function() {
+    if (!paused) {
+      paused = true;
+      document.getElementById("toggle-icon").classList.remove("fa-pause");
+      document.getElementById("toggle-icon").classList.add("fa-play");
+      recognition.stop();
+    } else {
+      paused = false;
+      document.getElementById("toggle-icon").classList.remove("fa-play");
+      document.getElementById("toggle-icon").classList.add("fa-pause");
+      recognition.start();
+    }
+  });
+
+  // Toggle mute/unmute functionality with icon change
+  document.getElementById("mute-button").addEventListener("click", function() {
+    muted = !muted;
+    if (muted) {
+      document.getElementById("mute-icon").classList.remove("fa-volume-up");
+      document.getElementById("mute-icon").classList.add("fa-volume-mute");
+      speechSynthesis.cancel();
+    } else {
+      document.getElementById("mute-icon").classList.remove("fa-volume-mute");
+      document.getElementById("mute-icon").classList.add("fa-volume-up");
+    }
+  });
+
+  if (!paused) {
+    recognition.start();
+  }
+
+  // Audio Volume Detection for Dynamic Glow & Bounce on the mic button
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(stream => {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const microphone = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 512;
+      microphone.connect(analyser);
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      
+      function updateVolumeEffect() {
+        analyser.getByteTimeDomainData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          let value = (dataArray[i] - 128) / 128;
+          sum += value * value;
+        }
+        let rms = Math.sqrt(sum / dataArray.length);
+        let intensity = Math.min(1, rms * 10);
+        document.getElementById("mic-button").style.boxShadow =
+          `0 0 ${10 + intensity * 30}px rgba(255, ${Math.floor(255 * (1 - intensity))}, ${Math.floor(255 * intensity)}, ${0.5 + intensity * 0.5})`;
+        if (!paused && intensity > 0.3) {
+          document.getElementById("mic-button").classList.add("active");
+        } else {
+          document.getElementById("mic-button").classList.remove("active");
+        }
+        requestAnimationFrame(updateVolumeEffect);
+      }
+      
+      updateVolumeEffect();
+    })
+    .catch(error => console.error("Error accessing microphone for volume analysis:", error));
+</script>
+{% endblock %}

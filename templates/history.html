@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="history-container">
+  <div class="filter-buttons">
+    <a href="{{ url_for('history', filter='all') }}" class="{{ 'active' if filter_type=='all' else '' }}">All</a>
+    <a href="{{ url_for('history', filter='calendar') }}" class="{{ 'active' if filter_type=='calendar' else '' }}">Calendar</a>
+    <a href="{{ url_for('history', filter='chat') }}" class="{{ 'active' if filter_type=='chat' else '' }}">Chat</a>
+  </div>
+  <div class="chat-history">
+    {% for item in history %}
+      <div class="chat-pair">
+        <div class="bubble user-bubble">
+          {{ item.command }}
+        </div>
+        <div class="bubble assistant-bubble">
+          {{ item.response }}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

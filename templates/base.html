@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ title if title else "Voice Assistant" }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <!-- Uniform background is set on the body element -->
+  <div class="top-hover-area"></div>
+  <nav class="navbar">
+    <a href="{{ url_for('home') }}">Home</a>
+    <a href="{{ url_for('about') }}">About</a>
+    <a href="{{ url_for('history') }}">History</a>
+    {% if session.get('username') %}
+      <span class="welcome">Welcome, {{ session.get('username') }}!</span>
+      <a href="{{ url_for('logout') }}">Logout</a>
+    {% else %}
+      <a href="{{ url_for('login') }}">Login</a>
+      <a href="{{ url_for('signup') }}">Signup</a>
+    {% endif %}
+  </nav>
+  {% block content %}{% endblock %}
+
+  <!-- Color Picker at Bottom Right -->
+  <div id="color-picker">
+    <div id="current-color" class="color-circle"></div>
+    <div id="color-palette" class="color-palette">
+      <div class="palette-color" data-color="linear-gradient(135deg, #1f1c2c, #928dab)"></div>
+      <div class="palette-color" data-color="linear-gradient(135deg, #ff416c, #ff4b2b)"></div>
+      <div class="palette-color" data-color="linear-gradient(135deg, #2193b0, #6dd5ed)"></div>
+      <div class="palette-color" data-color="linear-gradient(135deg, #cc2b5e, #753a88)"></div>
+      <div class="palette-color" data-color="linear-gradient(135deg, #42275a, #734b6d)"></div>
+    </div>
+  </div>
+
+  <script>
+    // Color Picker functionality:
+    const currentColorCircle = document.getElementById('current-color');
+    const colorPalette = document.getElementById('color-palette');
+    // Load saved background from localStorage or use default
+    let savedBackground = localStorage.getItem('backgroundColor') || "linear-gradient(135deg, #1f1c2c, #928dab)";
+    document.body.style.background = savedBackground;
+    currentColorCircle.style.background = savedBackground;
+    
+    // Toggle palette display when current color circle is clicked
+    currentColorCircle.addEventListener('click', () => {
+      colorPalette.style.display = (colorPalette.style.display === 'block') ? 'none' : 'block';
+    });
+    
+    // Update background when a palette color is clicked
+    document.querySelectorAll('.palette-color').forEach(item => {
+      item.addEventListener('click', () => {
+        let newColor = item.getAttribute('data-color');
+        document.body.style.background = newColor;
+        currentColorCircle.style.background = newColor;
+        localStorage.setItem('backgroundColor', newColor);
+        colorPalette.style.display = 'none';
+      });
+    });
+  </script>
+</body>
+</html>
